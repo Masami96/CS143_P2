@@ -24,6 +24,7 @@ import org.scalatest.FunSuite
 class DiskPartitionSuite extends FunSuite {
 
   // TESTS FOR TASK #1
+
   test ("disk partition") {
     val partition: DiskPartition = new DiskPartition("disk partition test", 2000)
 
@@ -50,4 +51,5 @@ class DiskPartitionSuite extends FunSuite {
       partition.insert(Row(1))
     }
   }
+
 }

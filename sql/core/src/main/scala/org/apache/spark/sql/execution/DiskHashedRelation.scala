@@ -17,8 +17,8 @@
 package org.apache.spark.sql.execution
 
 import java.io._
-import java.nio.file.{Path, StandardOpenOption, Files}
-import java.util.{ArrayList => JavaArrayList}
+import java.nio.file.{Files, Path, StandardOpenOption}
+import java.util.{NoSuchElementException, ArrayList => JavaArrayList}
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.expressions.{Projection, Row}
@@ -53,6 +53,7 @@ protected [sql] final class GeneralDiskHashedRelation(partitions: Array[DiskPart
 
   override def getIterator() = {
     /* IMPLEMENT THIS METHOD */
+
     null
   }
 
@@ -80,6 +81,28 @@ private[sql] class DiskPartition (
     */
   def insert(row: Row) = {
     /* IMPLEMENT THIS METHOD */
+    if (inputClosed == false) {
+      val temp: JavaArrayList[Row] = new JavaArrayList[Row]
+      temp.add(row)
+      val temp_size = CS143Utils.getBytesFromList(temp).size
+
+      val byte_size: Int = measurePartitionSize()
+
+      val total_size: Int = byte_size + temp_size
+
+      if (total_size > blockSize) {
+        spillPartitionToDisk()
+        data.clear()
+      }
+      else {
+        writtenToDisk = false
+      }
+      data.add(row)
+    }
+    else {
+      throw new SparkException("Failure to insert Row. Input already closed.")
+    }
+    // done
   }
 
   /**
@@ -103,6 +126,7 @@ private[sql] class DiskPartition (
 
     Files.write(path, bytes, StandardOpenOption.APPEND)
     writtenToDisk = true
+
   }
 
   /**
@@ -121,14 +145,26 @@ private[sql] class DiskPartition (
       val chunkSizeIterator: Iterator[Int] = chunkSizes.iterator().asScala
       var byteArray: Array[Byte] = null
 
-      override def next() = {
+      override def next(): Row = {
         /* IMPLEMENT THIS METHOD */
-        null
+        if (currentIterator.hasNext == false){
+          if (fetchNextChunk() == false) {
+
+            return null
+          }
+        }
+        currentIterator.next
       }
 
-      override def hasNext() = {
+      override def hasNext(): Boolean = {
         /* IMPLEMENT THIS METHOD */
-        false
+        if (currentIterator.hasNext == false){
+          if (fetchNextChunk() == false) {
+
+            return false
+          }
+        }
+        true
       }
 
       /**
@@ -139,8 +175,16 @@ private[sql] class DiskPartition (
         */
       private[this] def fetchNextChunk(): Boolean = {
         /* IMPLEMENT THIS METHOD */
+        if (chunkSizeIterator.hasNext == true) {
+          data.clear()
+          byteArray = CS143Utils.getNextChunkBytes(inStream, chunkSizeIterator.next(), byteArray)
+          data.addAll(CS143Utils.getListFromBytes(byteArray))
+          currentIterator = data.iterator.asScala
+          return true
+        }
         false
       }
+
     }
   }
 
@@ -153,7 +197,11 @@ private[sql] class DiskPartition (
     */
   def closeInput() = {
     /* IMPLEMENT THIS METHOD */
+    spillPartitionToDisk()
+    data.clear()
+    outStream.close()
     inputClosed = true
+    // done
   }
 
 
