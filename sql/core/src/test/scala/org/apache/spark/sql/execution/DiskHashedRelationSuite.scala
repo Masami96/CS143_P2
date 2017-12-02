@@ -29,6 +29,7 @@ class DiskHashedRelationSuite extends FunSuite {
   }
 
   // TESTS FOR TASK #2
+
   test("values are in correct partition") {
     val data: Array[Row] = (0 to 100).map(i => Row(i)).toArray
     val hashedRelation: DiskHashedRelation = DiskHashedRelation(data.iterator, keyGenerator, 3, 64000)
