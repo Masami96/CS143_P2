@@ -128,8 +128,15 @@ object CS143Utils {
     * @return
     */
   def getUdfFromExpressions(expressions: Seq[Expression]): ScalaUdf = {
-    /* IMPLEMENT THIS METHOD */
-    null
+    /* done */
+    var last_udf: ScalaUdf = null
+    var len: Int = expressions.size
+    for (i <- 0 to len - 1){
+      if (expressions(i).isInstanceOf[ScalaUdf]) {
+        last_udf = expressions(i).asInstanceOf[ScalaUdf]
+      }
+    }
+    last_udf
   }
 
   /**
@@ -223,14 +230,34 @@ object CachingIteratorGenerator {
       val postUdfProjection = CS143Utils.getNewProjection(postUdfExpressions, inputSchema)
       val cache: JavaHashMap[Row, Row] = new JavaHashMap[Row, Row]()
 
-      def hasNext() = {
-        /* IMPLEMENT THIS METHOD */
-        false
+      def hasNext(): Boolean = {
+        // done
+        if (input.hasNext == true) {
+          return true
+        }
+        else {
+          cache.clear()
+          return false
+        }
       }
 
       def next() = {
-        /* IMPLEMENT THIS METHOD */
-        null
+        /* done */
+        if (input.hasNext){
+          val it = input.next
+          val key = cacheKeyProjection(it)
+          if (!cache.containsKey(key)) {
+            cache.put(key, udfProject(it))
+          }
+          val preudf = preUdfProjection(it)
+          val udf = cache.get(key)
+          val postudf = postUdfProjection(it)
+
+          Row.fromSeq( preudf ++ udf ++ postudf )
+        }
+        else{
+          null
+        }
       }
     }
   }
@@ -252,12 +279,22 @@ object AggregateIteratorGenerator {
       val postAggregateProjection = CS143Utils.getNewProjection(resultExpressions, inputSchema)
 
       def hasNext() = {
-        /* IMPLEMENT THIS METHOD */
-        false
+        /* done */
+        input.hasNext
       }
 
       def next() = {
         /* IMPLEMENT THIS METHOD */
+        /*
+        if (input.hasNext == true){
+
+          val (row, asf) = input.next
+
+          val result = new GenericMutableRow(1)
+          result(0) = asf.eval()
+
+        }
+        */
         null
       }
     }

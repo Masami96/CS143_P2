@@ -52,12 +52,12 @@ protected [sql] final class GeneralDiskHashedRelation(partitions: Array[DiskPart
   extends DiskHashedRelation with Serializable {
 
   override def getIterator() = {
-    /* IMPLEMENT THIS METHOD */
+    /*  done */
     partitions.iterator
   }
 
   override def closeAllPartitions() = {
-    /* IMPLEMENT THIS METHOD */
+    /* done */
     val size = partitions.size
     for (i <- 0 to size-1) {
       partitions(i).closeInput()
@@ -246,7 +246,7 @@ private[sql] object DiskHashedRelation {
               keyGenerator: Projection,
               size: Int = 64,
               blockSize: Int = 64000) = {
-    /* IMPLEMENT THIS METHOD */
+    /* done */
       val disk_partitions = new Array[DiskPartition](size)
       for (i <- 0 to size - 1) {
         val dp = new DiskPartition(i.toString(), blockSize)
