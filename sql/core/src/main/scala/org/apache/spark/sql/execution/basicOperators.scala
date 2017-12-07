@@ -98,7 +98,7 @@ case class PartitionProject(projectList: Seq[Expression], child: SparkPlan) exte
     // This is the key generator for the course-grained external hashing.
     val keyGenerator = CS143Utils.getNewProjection(projectList, child.output)
 
-    /* IMPLEMENT THIS METHOD */
+    /* done */
 
     new Iterator[Row] {
       val DHR = DiskHashedRelation(input, keyGenerator)

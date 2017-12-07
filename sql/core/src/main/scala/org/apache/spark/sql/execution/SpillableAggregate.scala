@@ -53,14 +53,26 @@ case class SpillableAggregate(
                                 aggregate: AggregateExpression,
                                 resultAttribute: AttributeReference)
 
+  /** A list of aggregates that need to be computed for each group. */
+  private[this] val computedAggregates = aggregateExpressions.flatMap { agg =>
+    agg.collect {
+      case a: AggregateExpression =>
+        ComputedAggregate(
+          a,
+          BindReferences.bindReference(a, child.output), // change childOutput to its value due to private val
+          AttributeReference(s"aggResult:$a", a.dataType, a.nullable)())
+    }
+  }
+  // import the above computedAggregates val from Aggregate.scala
+
   /** Physical aggregator generated from a logical expression.  */
-  private[this] val aggregator: ComputedAggregate = null //IMPLEMENT ME
+  private[this] val aggregator: ComputedAggregate = computedAggregates(0) // done
 
   /** Schema of the aggregate.  */
-  private[this] val aggregatorSchema: AttributeReference = null //IMPLEMENT ME
+  private[this] val aggregatorSchema: AttributeReference =  aggregator.resultAttribute // done
 
   /** Creates a new aggregator instance.  */
-  private[this] def newAggregatorInstance(): AggregateFunction = null //IMPLEMENT ME
+  private[this] def newAggregatorInstance(): AggregateFunction = aggregator.aggregate.newInstance() // done
 
   /** Named attributes used to substitute grouping attributes in the final result. */
   private[this] val namedGroups = groupingExpressions.map {
@@ -103,8 +115,15 @@ case class SpillableAggregate(
     var data = input
 
     def initSpills(): Array[DiskPartition] = {
-      /* IMPLEMENT THIS METHOD */
-      null
+      /* done */
+      val p_Array = new Array[DiskPartition](numPartitions)
+      val blockSize: Int = 0
+
+      for (i <- 0 to numPartitions - 1) {
+        p_Array(i) = new DiskPartition(i.toString(), blockSize)
+      }
+
+      p_Array
     }
 
     val spills = initSpills()
@@ -120,14 +139,22 @@ case class SpillableAggregate(
       var diskHashedRelation: Option[DiskHashedRelation] = None
       var aggregateResult: Iterator[Row] = aggregate()
 
+      // make our own spills iterator
+      var spillIterator = spills.iterator
+
       def hasNext() = {
-        /* IMPLEMENT THIS METHOD */
-        false
+        /* done */
+        if (aggregateResult.hasNext == true && spillIterator.hasNext == true && fetchSpill()) {
+          true
+        }
+        else {
+          false
+        }
       }
 
       def next() = {
-        /* IMPLEMENT THIS METHOD */
-        null
+        /* done */
+        aggregateResult.next
       }
 
       /**
@@ -137,7 +164,24 @@ case class SpillableAggregate(
         */
       private def aggregate(): Iterator[Row] = {
         /* IMPLEMENT THIS METHOD */
-        null
+        var cur_row: Row = null
+        while (data.hasNext){
+          cur_row = data.next
+          val cur_group = groupingProjection(cur_row)
+          var cur_instance = currentAggregationTable.apply(cur_group)
+
+          if (cur_instance == null){
+            cur_instance = newAggregatorInstance()
+            currentAggregationTable.update(cur_group.copy(), cur_instance)
+          }
+
+          if (cur_instance != null){
+            cur_instance.update(cur_row)
+          }
+        }
+
+        AggregateIteratorGenerator(resultExpression, Seq(aggregatorSchema) ++ namedGroups.map(_._2))(currentAggregationTable.iterator)
+
       }
 
       /**
@@ -147,6 +191,8 @@ case class SpillableAggregate(
         */
       private def spillRecord(group: Row, row: Row)  = {
         /* IMPLEMENT THIS METHOD */
+
+        null
       }
 
       /**
@@ -157,7 +203,8 @@ case class SpillableAggregate(
         */
       private def fetchSpill(): Boolean  = {
         /* IMPLEMENT THIS METHOD */
-        false
+
+        true
       }
     }
   }

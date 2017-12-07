@@ -253,7 +253,8 @@ object CachingIteratorGenerator {
           val udf = cache.get(key)
           val postudf = postUdfProjection(it)
 
-          Row.fromSeq( preudf ++ udf ++ postudf )
+          val concat = Row.fromSeq( preudf ++ udf ++ postudf )
+          concat
         }
         else{
           null
@@ -284,18 +285,18 @@ object AggregateIteratorGenerator {
       }
 
       def next() = {
-        /* IMPLEMENT THIS METHOD */
-        /*
-        if (input.hasNext == true){
+        /* done */
 
-          val (row, asf) = input.next
+        val currentEntry = input.next()
+        val currentGroup = currentEntry._1
+        val currentInstance = currentEntry._2
 
-          val result = new GenericMutableRow(1)
-          result(0) = asf.eval()
+        val result = new GenericMutableRow(1)
+        result(0) = currentInstance.eval()
 
-        }
-        */
-        null
+        val concat = new JoinedRow(result, currentGroup)
+        postAggregateProjection(concat)
+
       }
     }
   }
