@@ -136,12 +136,9 @@ case class SpillableAggregate(
         *
         * @return
         */
-      var hashedSpills: Option[Iterator[DiskPartition]] = None
+      var hashedSpills: Iterator[DiskPartition] = spills.iterator // remove Option to assign to spills.iterator
       var diskHashedRelation: Option[DiskHashedRelation] = None
       var aggregateResult: Iterator[Row] = aggregate()
-
-      // make our own spills iterator
-      var spillIterator = spills.iterator
 
       def hasNext() = {
         /* done */
@@ -166,7 +163,7 @@ case class SpillableAggregate(
         * @return
         */
       private def aggregate(): Iterator[Row] = {
-        /* IMPLEMENT THIS METHOD */
+        /* I done */
 
         var cur_row: Row = null
         while (data.hasNext) {
@@ -190,7 +187,7 @@ case class SpillableAggregate(
           }
         }
 
-        var len = spills.length
+        val len = spills.length
         for (i <- 0 to len - 1){
           spills(i).closeInput()
         }
@@ -220,9 +217,9 @@ case class SpillableAggregate(
         currentAggregationTable = new SizeTrackingAppendOnlyMap[Row, AggregateFunction]
         var next_partition: DiskPartition = null
 
-        while (spillIterator.hasNext) {
+        while (hashedSpills.hasNext) {
           if (data.hasNext == false) {
-            next_partition = spillIterator.next
+            next_partition = hashedSpills.next
             data = next_partition.getData()
           }
           if (data.hasNext) {
