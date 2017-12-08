@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.catalyst.errors._
@@ -43,8 +44,8 @@ case class SpillableAggregate(
   /**
     * An aggregate that needs to be computed for each row in a group.
     *
-    * @param unbound Unbound version of this aggregate, used for result substitution.
-    * @param aggregate A bound copy of this aggregate used to create a new aggregation buffer.
+    * @param unbound         Unbound version of this aggregate, used for result substitution.
+    * @param aggregate       A bound copy of this aggregate used to create a new aggregation buffer.
     * @param resultAttribute An attribute used to refer to the result of this aggregate in the final
     *                        output.
     */
@@ -69,7 +70,7 @@ case class SpillableAggregate(
   private[this] val aggregator: ComputedAggregate = computedAggregates(0) // done
 
   /** Schema of the aggregate.  */
-  private[this] val aggregatorSchema: AttributeReference =  aggregator.resultAttribute // done
+  private[this] val aggregatorSchema: AttributeReference = aggregator.resultAttribute // done
 
   /** Creates a new aggregator instance.  */
   private[this] def newAggregatorInstance(): AggregateFunction = aggregator.aggregate.newInstance() // done
@@ -85,7 +86,7 @@ case class SpillableAggregate(
     * expression into the final result expression.
     */
   protected val resultMap =
-  ( Seq(aggregator.unbound -> aggregator.resultAttribute) ++ namedGroups).toMap
+    (Seq(aggregator.unbound -> aggregator.resultAttribute) ++ namedGroups).toMap
 
   /**
     * Substituted version of aggregateExpressions expressions which are used to compute final
@@ -105,7 +106,7 @@ case class SpillableAggregate(
     * values or by spilling to disk. Spilled partitions are successively aggregated one by one
     * until no data is left.
     *
-    * @param input the input iterator
+    * @param input      the input iterator
     * @param memorySize the memory size limit for this aggregate
     * @return the result of applying the projection
     */
@@ -144,12 +145,14 @@ case class SpillableAggregate(
 
       def hasNext() = {
         /* done */
-        if (aggregateResult.hasNext == true && spillIterator.hasNext == true && fetchSpill()) {
+
+        if (aggregateResult.hasNext == true || fetchSpill() == true) {
           true
         }
         else {
           false
         }
+
       }
 
       def next() = {
@@ -164,24 +167,32 @@ case class SpillableAggregate(
         */
       private def aggregate(): Iterator[Row] = {
         /* IMPLEMENT THIS METHOD */
+
         var cur_row: Row = null
-        while (data.hasNext){
+        while (data.hasNext) {
           cur_row = data.next
           val cur_group = groupingProjection(cur_row)
           var cur_instance = currentAggregationTable.apply(cur_group)
 
-          if (CS143Utils.maybeSpill(currentAggregationTable, memorySize) == true){
-            spillRecord(cur_group, cur_row)
-          }
 
-          else if (cur_instance == null){
+          if (cur_instance == null) {
+            if (CS143Utils.maybeSpill(currentAggregationTable, memorySize) == true) {
+              spillRecord(cur_group, cur_row)
+            }
+            else {
               cur_instance = newAggregatorInstance()
               currentAggregationTable.update(cur_group.copy(), cur_instance)
+            }
           }
 
-          if (cur_instance != null){
+          if (cur_instance != null) {
             cur_instance.update(cur_row)
           }
+        }
+
+        var len = spills.length
+        for (i <- 0 to len - 1){
+          spills(i).closeInput()
         }
 
         AggregateIteratorGenerator(resultExpression, Seq(aggregatorSchema) ++ namedGroups.map(_._2))(currentAggregationTable.iterator)
@@ -193,10 +204,9 @@ case class SpillableAggregate(
         *
         * @return
         */
-      private def spillRecord(group: Row, row: Row)  = {
+      private def spillRecord(group: Row, row: Row) = {
         /* done */
         spills(group.hashCode() % numPartitions).insert(row)
-        null
       }
 
       /**
@@ -205,10 +215,22 @@ case class SpillableAggregate(
         *
         * @return
         */
-      private def fetchSpill(): Boolean  = {
-        /* IMPLEMENT THIS METHOD */
+      private def fetchSpill(): Boolean = {
+        /* done */
+        currentAggregationTable = new SizeTrackingAppendOnlyMap[Row, AggregateFunction]
+        var next_partition: DiskPartition = null
 
-        true
+        while (spillIterator.hasNext) {
+          if (data.hasNext == false) {
+            next_partition = spillIterator.next
+            data = next_partition.getData()
+          }
+          if (data.hasNext) {
+            aggregateResult = aggregate()
+            return true
+          }
+        }
+        false
       }
     }
   }
