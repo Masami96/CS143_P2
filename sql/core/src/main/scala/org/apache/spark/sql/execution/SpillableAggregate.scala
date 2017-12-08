@@ -170,9 +170,13 @@ case class SpillableAggregate(
           val cur_group = groupingProjection(cur_row)
           var cur_instance = currentAggregationTable.apply(cur_group)
 
-          if (cur_instance == null){
-            cur_instance = newAggregatorInstance()
-            currentAggregationTable.update(cur_group.copy(), cur_instance)
+          if (CS143Utils.maybeSpill(currentAggregationTable, memorySize) == true){
+            spillRecord(cur_group, cur_row)
+          }
+
+          else if (cur_instance == null){
+              cur_instance = newAggregatorInstance()
+              currentAggregationTable.update(cur_group.copy(), cur_instance)
           }
 
           if (cur_instance != null){
@@ -190,8 +194,8 @@ case class SpillableAggregate(
         * @return
         */
       private def spillRecord(group: Row, row: Row)  = {
-        /* IMPLEMENT THIS METHOD */
-
+        /* done */
+        spills(group.hashCode() % numPartitions).insert(row)
         null
       }
 
